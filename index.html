@@ -566,11 +566,11 @@
 
   <div class="timeline-controls">
     <div class="audio-section">
-      <button class="btn-audio-upload" id="btn-audio-upload">
+      <label class="btn-audio-upload" for="audio-file-input">
         🎵 音源を読み込む
-      </button>
+      </label>
       <span class="audio-filename" id="audio-filename">ファイルなし</span>
-      <input type="file" id="audio-file-input" accept="audio/*" style="display:none">
+      <input type="file" id="audio-file-input" accept="audio/*" style="position:absolute;opacity:0;width:0;height:0;">
     </div>
 
     <div class="playback-row">
@@ -619,11 +619,11 @@
     <div class="modal-body">
       <div>
         <label class="form-label">画像</label>
-        <div class="image-upload-area" id="cut-image-area">
+        <label class="image-upload-area" id="cut-image-area" for="cut-image-input">
           <div class="image-upload-icon">🖼</div>
           <div class="image-upload-text">タップして画像を選択</div>
-        </div>
-        <input type="file" id="cut-image-input" accept="image/*" style="display:none">
+        </label>
+        <input type="file" id="cut-image-input" accept="image/*" style="position:absolute;opacity:0;width:0;height:0;">
       </div>
       <div>
         <label class="form-label">テキストメモ</label>
@@ -751,9 +751,7 @@ document.getElementById('btn-back').addEventListener('click', () => {
 });
 
 // ========== AUDIO ==========
-document.getElementById('btn-audio-upload').addEventListener('click', () => {
-  document.getElementById('audio-file-input').click();
-});
+// audio upload handled by label
 
 document.getElementById('audio-file-input').addEventListener('change', (e) => {
   const file = e.target.files[0];
@@ -1060,7 +1058,7 @@ function openCutModal(cutId) {
 
   const imgArea = document.getElementById('cut-image-area');
   if (cut.imageData) {
-    imgArea.innerHTML = `<img src="${cut.imageData}" alt="">`;
+    imgArea.innerHTML = `<img src="${cut.imageData}" alt="" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;">`;
   } else {
     imgArea.innerHTML = `
       <div class="image-upload-icon">🖼</div>
@@ -1071,17 +1069,15 @@ function openCutModal(cutId) {
   showModal('modal-cut');
 }
 
-document.getElementById('cut-image-area').addEventListener('click', () => {
-  document.getElementById('cut-image-input').click();
-});
+// image upload handled by label
 document.getElementById('cut-image-input').addEventListener('change', (e) => {
   const file = e.target.files[0];
   if (!file) return;
   const reader = new FileReader();
   reader.onload = (ev) => {
     const imgArea = document.getElementById('cut-image-area');
-    imgArea.innerHTML = `<img src="${ev.target.result}" alt="">`;
-    // 一時保存
+    // labelの中身を入れ替え（for属性は維持）
+    imgArea.innerHTML = `<img src="${ev.target.result}" alt="" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;">`;
     const project = getProject(currentProjectId);
     const cut = project.cuts.find(c => c.id === currentCutId);
     if (cut) { cut._tempImage = ev.target.result; }
