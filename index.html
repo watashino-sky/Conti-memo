@@ -349,6 +349,31 @@
     font-family: 'Noto Sans JP', sans-serif;
   }
 
+  /* 長押しメニュー */
+  .context-menu {
+    position: fixed; z-index: 200;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    overflow: hidden;
+    min-width: 160px;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.6);
+    animation: fadeIn 0.12s ease;
+  }
+  @keyframes fadeIn { from { opacity: 0; transform: scale(0.95); } to { opacity: 1; transform: scale(1); } }
+  .context-menu-item {
+    padding: 14px 18px;
+    font-size: 14px; cursor: pointer;
+    display: flex; align-items: center; gap: 10px;
+    border-bottom: 1px solid var(--border);
+  }
+  .context-menu-item:last-child { border-bottom: none; }
+  .context-menu-item:active { background: var(--surface2); }
+  .context-menu-item.danger { color: #ff4444; }
+  .context-menu-overlay {
+    position: fixed; inset: 0; z-index: 199;
+  }
+
   ::-webkit-scrollbar { width: 4px; }
   ::-webkit-scrollbar-track { background: transparent; }
   ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
@@ -509,6 +534,61 @@ async function loadAudioFromDB(projectId) {
   });
 }
 
+// IndexedDB: delete audio
+async function deleteAudioFromDB(projectId) {
+  const database = await openDB();
+  return new Promise((resolve, reject) => {
+    const tx = database.transaction('audio', 'readwrite');
+    tx.objectStore('audio').delete(projectId);
+    tx.oncomplete = resolve; tx.onerror = reject;
+  });
+}
+
+// Context menu
+function showProjectContextMenu(projectId, x, y) {
+  // 既存メニューを閉じる
+  closeContextMenu();
+
+  const overlay = document.createElement('div');
+  overlay.className = 'context-menu-overlay';
+  overlay.addEventListener('click', closeContextMenu);
+  document.body.appendChild(overlay);
+
+  const menu = document.createElement('div');
+  menu.className = 'context-menu';
+  menu.id = 'context-menu';
+
+  // 表示位置をビューポートに収める
+  const menuW = 160;
+  const menuH = 100;
+  let left = Math.min(x, window.innerWidth - menuW - 8);
+  let top = Math.min(y, window.innerHeight - menuH - 8);
+
+  menu.style.left = left + 'px';
+  menu.style.top = top + 'px';
+
+  const deleteItem = document.createElement('div');
+  deleteItem.className = 'context-menu-item danger';
+  deleteItem.innerHTML = '&#128465; プロジェクトを削除';
+  deleteItem.addEventListener('click', async () => {
+    closeContextMenu();
+    if (!confirm('\u3053\u306E\u30D7\u30ED\u30B8\u30A7\u30AF\u30C8\u3092\u524A\u9664\u3057\u307E\u3059\u304B\uFF1F\n\u30AB\u30C3\u30C8\u3084\u97F3\u6E90\u3082\u3059\u3079\u3066\u524A\u9664\u3055\u308C\u307E\u3059\u3002')) return;
+    try { await deleteAudioFromDB(projectId); } catch(e) { console.error(e); }
+    projects = projects.filter(p => p.id !== projectId);
+    saveProjects();
+    renderProjectList();
+  });
+  menu.appendChild(deleteItem);
+
+  document.body.appendChild(menu);
+}
+
+function closeContextMenu() {
+  const menu = document.getElementById('context-menu');
+  if (menu) menu.remove();
+  document.querySelectorAll('.context-menu-overlay').forEach(el => el.remove());
+}
+
 // Project list
 function renderProjectList() {
   const content = document.getElementById('project-list-content');
@@ -525,7 +605,20 @@ function renderProjectList() {
         '<div class="project-card-meta">' + p.cuts.length + 'カット</div>' +
       '</div>' +
       '<div class="project-card-arrow">&#8250;</div>';
+    // タップで開く
     card.addEventListener('click', () => openProject(p.id));
+
+    // 長押しで削除メニュー
+    let longPressTimer = null;
+    card.addEventListener('touchstart', (e) => {
+      longPressTimer = setTimeout(() => {
+        e.preventDefault();
+        showProjectContextMenu(p.id, e.touches[0].clientX, e.touches[0].clientY);
+      }, 600);
+    }, { passive: true });
+    card.addEventListener('touchend', () => clearTimeout(longPressTimer));
+    card.addEventListener('touchmove', () => clearTimeout(longPressTimer));
+
     content.appendChild(card);
   });
 
