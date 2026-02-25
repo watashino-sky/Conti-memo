@@ -1,0 +1,1146 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>絵コンテ</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@300;400;500;700&family=Space+Mono:wght@400;700&display=swap');
+
+  :root {
+    --bg: #0f0f0f;
+    --surface: #1a1a1a;
+    --surface2: #242424;
+    --border: #2e2e2e;
+    --accent: #e8ff47;
+    --accent2: #ff6b35;
+    --text: #f0f0f0;
+    --text-muted: #666;
+    --timeline-width: 56px;
+    --cut-min-height: 80px;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+
+  body {
+    font-family: 'Noto Sans JP', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    height: 100dvh;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* ========== SCREENS ========== */
+  .screen { display: none; flex-direction: column; height: 100dvh; }
+  .screen.active { display: flex; }
+
+  /* ========== TOP BAR ========== */
+  .topbar {
+    display: flex;
+    align-items: center;
+    padding: 12px 16px;
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    gap: 12px;
+    flex-shrink: 0;
+  }
+  .topbar-title {
+    font-family: 'Space Mono', monospace;
+    font-size: 14px;
+    letter-spacing: 0.05em;
+    color: var(--accent);
+    flex: 1;
+  }
+  .topbar-back {
+    background: none;
+    border: none;
+    color: var(--text-muted);
+    font-size: 20px;
+    cursor: pointer;
+    padding: 4px;
+    line-height: 1;
+  }
+
+  /* ========== PROJECT LIST ========== */
+  #screen-list .content {
+    flex: 1;
+    overflow-y: auto;
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .project-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 16px;
+    cursor: pointer;
+    transition: border-color 0.15s, background 0.15s;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  .project-card:active { background: var(--surface2); border-color: var(--accent); }
+  .project-card-icon {
+    width: 44px; height: 44px;
+    background: var(--surface2);
+    border-radius: 8px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 20px;
+    flex-shrink: 0;
+  }
+  .project-card-info { flex: 1; min-width: 0; }
+  .project-card-name {
+    font-size: 15px;
+    font-weight: 500;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .project-card-meta {
+    font-size: 12px;
+    color: var(--text-muted);
+    margin-top: 2px;
+  }
+  .project-card-arrow { color: var(--text-muted); font-size: 18px; }
+
+  .btn-new-project {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    background: var(--accent);
+    color: #000;
+    border: none;
+    border-radius: 12px;
+    padding: 16px;
+    font-family: 'Noto Sans JP', sans-serif;
+    font-size: 15px;
+    font-weight: 700;
+    cursor: pointer;
+    width: 100%;
+    transition: opacity 0.15s;
+  }
+  .btn-new-project:active { opacity: 0.8; }
+
+  .empty-state {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    color: var(--text-muted);
+    padding: 40px;
+    text-align: center;
+  }
+  .empty-state-icon { font-size: 48px; }
+  .empty-state-text { font-size: 14px; line-height: 1.6; }
+
+  /* ========== TIMELINE SCREEN ========== */
+  #screen-timeline { position: relative; }
+
+  .timeline-controls {
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    padding: 10px 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    flex-shrink: 0;
+  }
+
+  .audio-section {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .btn-audio-upload {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    color: var(--text);
+    padding: 8px 12px;
+    font-size: 13px;
+    cursor: pointer;
+    white-space: nowrap;
+    font-family: 'Noto Sans JP', sans-serif;
+  }
+  .btn-audio-upload:active { background: var(--border); }
+
+  .audio-filename {
+    font-size: 12px;
+    color: var(--text-muted);
+    flex: 1;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .playback-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .btn-play {
+    width: 44px; height: 44px;
+    background: var(--accent);
+    border: none;
+    border-radius: 50%;
+    color: #000;
+    font-size: 18px;
+    cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+    transition: opacity 0.15s;
+  }
+  .btn-play:active { opacity: 0.8; }
+  .btn-play:disabled { background: var(--border); color: var(--text-muted); cursor: default; }
+
+  .time-display {
+    font-family: 'Space Mono', monospace;
+    font-size: 13px;
+    color: var(--accent);
+    white-space: nowrap;
+  }
+
+  .btn-add-cut {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    background: var(--accent2);
+    border: none;
+    border-radius: 8px;
+    color: #fff;
+    padding: 10px 14px;
+    font-size: 13px;
+    font-weight: 700;
+    cursor: pointer;
+    font-family: 'Noto Sans JP', sans-serif;
+    flex: 1;
+    justify-content: center;
+    transition: opacity 0.15s;
+  }
+  .btn-add-cut:active { opacity: 0.8; }
+
+  /* ========== TIMELINE BODY ========== */
+  .timeline-body {
+    flex: 1;
+    overflow-y: auto;
+    position: relative;
+  }
+
+  .timeline-inner {
+    position: relative;
+    min-height: 100%;
+    padding-bottom: 120px;
+  }
+
+  /* 時間軸 */
+  .timeline-ruler {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: var(--timeline-width);
+    height: 100%;
+    background: var(--surface);
+    border-right: 2px solid var(--accent);
+    z-index: 10;
+  }
+
+  .ruler-tick {
+    position: absolute;
+    left: 0;
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    padding-right: 8px;
+  }
+  .ruler-tick-line {
+    position: absolute;
+    right: 0;
+    width: 8px;
+    height: 1px;
+    background: var(--border);
+  }
+  .ruler-tick.major .ruler-tick-line { width: 14px; background: var(--text-muted); }
+  .ruler-tick-label {
+    font-family: 'Space Mono', monospace;
+    font-size: 9px;
+    color: var(--text-muted);
+    line-height: 1;
+  }
+  .ruler-tick.major .ruler-tick-label { color: var(--text); font-size: 10px; }
+
+  /* 再生ヘッド */
+  .playhead {
+    position: absolute;
+    left: 0;
+    width: 100%;
+    height: 2px;
+    background: var(--accent);
+    z-index: 20;
+    pointer-events: none;
+  }
+  .playhead::before {
+    content: '';
+    position: absolute;
+    left: calc(var(--timeline-width) - 6px);
+    top: -5px;
+    width: 0; height: 0;
+    border-left: 6px solid transparent;
+    border-right: 6px solid transparent;
+    border-top: 10px solid var(--accent);
+  }
+  .playhead-draggable {
+    pointer-events: all;
+    position: absolute;
+    left: 0;
+    top: -12px;
+    width: var(--timeline-width);
+    height: 26px;
+    cursor: row-resize;
+  }
+
+  /* カット表示エリア */
+  .cuts-area {
+    position: absolute;
+    left: var(--timeline-width);
+    top: 0;
+    right: 0;
+    height: 100%;
+  }
+
+  /* カット */
+  .cut-block {
+    position: absolute;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-left: 3px solid var(--accent2);
+    border-radius: 0 8px 8px 0;
+    overflow: hidden;
+    cursor: pointer;
+    transition: border-color 0.1s;
+    touch-action: none;
+    display: flex;
+    flex-direction: column;
+  }
+  .cut-block:active, .cut-block.dragging { border-color: var(--accent); z-index: 30; }
+
+  .cut-header {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 6px;
+    background: rgba(255,107,53,0.15);
+    flex-shrink: 0;
+  }
+  .cut-number {
+    font-family: 'Space Mono', monospace;
+    font-size: 9px;
+    color: var(--accent2);
+  }
+  .cut-thumb {
+    width: 28px; height: 20px;
+    background: var(--surface);
+    border-radius: 3px;
+    object-fit: cover;
+    flex-shrink: 0;
+  }
+  .cut-thumb-placeholder {
+    width: 28px; height: 20px;
+    background: var(--surface);
+    border-radius: 3px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 10px;
+    color: var(--text-muted);
+    flex-shrink: 0;
+  }
+  .cut-text-preview {
+    font-size: 10px;
+    color: var(--text-muted);
+    flex: 1;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+  }
+
+  /* リサイズハンドル */
+  .cut-resize-handle {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 12px;
+    cursor: row-resize;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .cut-resize-handle::after {
+    content: '';
+    width: 24px;
+    height: 2px;
+    background: var(--border);
+    border-radius: 2px;
+  }
+
+  /* ========== MODAL ========== */
+  .modal-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.8);
+    z-index: 100;
+    align-items: flex-end;
+  }
+  .modal-overlay.active { display: flex; }
+
+  .modal {
+    background: var(--surface);
+    border-radius: 20px 20px 0 0;
+    width: 100%;
+    max-height: 90dvh;
+    display: flex;
+    flex-direction: column;
+    animation: slideUp 0.2s ease;
+  }
+  @keyframes slideUp {
+    from { transform: translateY(40px); opacity: 0; }
+    to { transform: translateY(0); opacity: 1; }
+  }
+
+  .modal-handle {
+    width: 36px; height: 4px;
+    background: var(--border);
+    border-radius: 2px;
+    margin: 12px auto 0;
+    flex-shrink: 0;
+  }
+  .modal-title {
+    font-size: 16px;
+    font-weight: 700;
+    padding: 16px 20px 8px;
+    flex-shrink: 0;
+  }
+  .modal-body {
+    flex: 1;
+    overflow-y: auto;
+    padding: 0 20px 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  .form-label {
+    font-size: 12px;
+    color: var(--text-muted);
+    margin-bottom: 6px;
+    display: block;
+  }
+  .form-input {
+    width: 100%;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    color: var(--text);
+    font-family: 'Noto Sans JP', sans-serif;
+    font-size: 14px;
+    padding: 12px;
+    outline: none;
+    transition: border-color 0.15s;
+  }
+  .form-input:focus { border-color: var(--accent); }
+  textarea.form-input { resize: none; min-height: 100px; }
+
+  .image-upload-area {
+    width: 100%;
+    aspect-ratio: 16/9;
+    background: var(--surface2);
+    border: 2px dashed var(--border);
+    border-radius: 12px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    cursor: pointer;
+    transition: border-color 0.15s;
+    overflow: hidden;
+    position: relative;
+  }
+  .image-upload-area:active { border-color: var(--accent); }
+  .image-upload-area img {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+  .image-upload-icon { font-size: 32px; }
+  .image-upload-text { font-size: 13px; color: var(--text-muted); }
+
+  .modal-actions {
+    display: flex;
+    gap: 10px;
+    padding: 12px 20px 20px;
+    flex-shrink: 0;
+    border-top: 1px solid var(--border);
+  }
+  .btn-modal-delete {
+    background: none;
+    border: 1px solid #ff4444;
+    color: #ff4444;
+    border-radius: 8px;
+    padding: 12px 16px;
+    font-size: 14px;
+    cursor: pointer;
+    font-family: 'Noto Sans JP', sans-serif;
+  }
+  .btn-modal-save {
+    flex: 1;
+    background: var(--accent);
+    border: none;
+    border-radius: 8px;
+    color: #000;
+    font-size: 14px;
+    font-weight: 700;
+    padding: 12px;
+    cursor: pointer;
+    font-family: 'Noto Sans JP', sans-serif;
+  }
+  .btn-modal-cancel {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    color: var(--text);
+    border-radius: 8px;
+    padding: 12px 16px;
+    font-size: 14px;
+    cursor: pointer;
+    font-family: 'Noto Sans JP', sans-serif;
+  }
+
+  /* ========== PROJECT CREATE MODAL ========== */
+  #modal-project .modal-body { gap: 12px; }
+
+  /* スクロールバー */
+  ::-webkit-scrollbar { width: 4px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+</style>
+</head>
+<body>
+
+<!-- ===== PROJECT LIST SCREEN ===== -->
+<div class="screen active" id="screen-list">
+  <div class="topbar">
+    <span class="topbar-title">STORYBOARD</span>
+    <button class="btn-new-project" id="btn-open-new-project" style="width:auto;padding:8px 16px;font-size:13px;">
+      ＋ 新規
+    </button>
+  </div>
+  <div class="content" id="project-list-content">
+    <div class="empty-state" id="empty-state">
+      <div class="empty-state-icon">🎬</div>
+      <div class="empty-state-text">プロジェクトがまだありません<br>「新規」から作成してください</div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== TIMELINE SCREEN ===== -->
+<div class="screen" id="screen-timeline">
+  <div class="topbar">
+    <button class="topbar-back" id="btn-back">←</button>
+    <span class="topbar-title" id="timeline-title">PROJECT</span>
+  </div>
+
+  <div class="timeline-controls">
+    <div class="audio-section">
+      <button class="btn-audio-upload" id="btn-audio-upload">
+        🎵 音源を読み込む
+      </button>
+      <span class="audio-filename" id="audio-filename">ファイルなし</span>
+      <input type="file" id="audio-file-input" accept="audio/*" style="display:none">
+    </div>
+
+    <div class="playback-row">
+      <button class="btn-play" id="btn-play" disabled>▶</button>
+      <span class="time-display" id="time-display">0:00.0 / 0:00.0</span>
+      <button class="btn-add-cut" id="btn-add-cut">
+        ＋ ここにカット追加
+      </button>
+    </div>
+  </div>
+
+  <div class="timeline-body" id="timeline-body">
+    <div class="timeline-inner" id="timeline-inner">
+      <div class="timeline-ruler" id="timeline-ruler"></div>
+      <div class="playhead" id="playhead">
+        <div class="playhead-draggable" id="playhead-draggable"></div>
+      </div>
+      <div class="cuts-area" id="cuts-area"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== MODAL: NEW PROJECT ===== -->
+<div class="modal-overlay" id="modal-project">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <div class="modal-title">新規プロジェクト</div>
+    <div class="modal-body">
+      <div>
+        <label class="form-label">プロジェクト名</label>
+        <input type="text" class="form-input" id="new-project-name" placeholder="例：MV 春の詩">
+      </div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn-modal-cancel" id="btn-cancel-project">キャンセル</button>
+      <button class="btn-modal-save" id="btn-create-project">作成</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== MODAL: CUT EDIT ===== -->
+<div class="modal-overlay" id="modal-cut">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <div class="modal-title" id="cut-modal-title">カット編集</div>
+    <div class="modal-body">
+      <div>
+        <label class="form-label">画像</label>
+        <div class="image-upload-area" id="cut-image-area">
+          <div class="image-upload-icon">🖼</div>
+          <div class="image-upload-text">タップして画像を選択</div>
+        </div>
+        <input type="file" id="cut-image-input" accept="image/*" style="display:none">
+      </div>
+      <div>
+        <label class="form-label">テキストメモ</label>
+        <textarea class="form-input" id="cut-text" placeholder="セリフ、動き、演出メモなど..."></textarea>
+      </div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn-modal-delete" id="btn-delete-cut">削除</button>
+      <button class="btn-modal-cancel" id="btn-cancel-cut">閉じる</button>
+      <button class="btn-modal-save" id="btn-save-cut">保存</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ========== STATE ==========
+let projects = JSON.parse(localStorage.getItem('storyboard_projects') || '[]');
+let currentProjectId = null;
+let currentCutId = null;
+let audio = null;
+let isPlaying = false;
+let animationFrame = null;
+let currentTime = 0;
+let duration = 0;
+
+// タイムライン設定
+const PX_PER_SEC = 80; // 1秒 = 80px
+const TICK_INTERVAL = 1; // 1秒ごとに目盛り
+const MAJOR_EVERY = 5;   // 5秒ごとにメジャー目盛り
+const TIMELINE_HEIGHT_SEC = 120; // 最大120秒分表示
+
+// ========== UTILS ==========
+function uid() {
+  return Date.now().toString(36) + Math.random().toString(36).slice(2);
+}
+function saveProjects() {
+  localStorage.setItem('storyboard_projects', JSON.stringify(projects));
+}
+function getProject(id) {
+  return projects.find(p => p.id === id);
+}
+function formatTime(sec) {
+  const m = Math.floor(sec / 60);
+  const s = (sec % 60).toFixed(1).padStart(4, '0');
+  return `${m}:${s}`;
+}
+
+// ========== PROJECT LIST ==========
+function renderProjectList() {
+  const content = document.getElementById('project-list-content');
+  const empty = document.getElementById('empty-state');
+
+  // 既存カードを削除
+  content.querySelectorAll('.project-card').forEach(el => el.remove());
+
+  if (projects.length === 0) {
+    empty.style.display = 'flex';
+  } else {
+    empty.style.display = 'none';
+    projects.forEach(p => {
+      const card = document.createElement('div');
+      card.className = 'project-card';
+      card.innerHTML = `
+        <div class="project-card-icon">🎬</div>
+        <div class="project-card-info">
+          <div class="project-card-name">${p.name}</div>
+          <div class="project-card-meta">${p.cuts.length}カット</div>
+        </div>
+        <div class="project-card-arrow">›</div>
+      `;
+      card.addEventListener('click', () => openProject(p.id));
+      content.appendChild(card);
+    });
+  }
+
+  // 新規ボタンを最下部に
+  let newBtn = content.querySelector('.btn-new-project');
+  if (!newBtn) {
+    newBtn = document.createElement('button');
+    newBtn.className = 'btn-new-project';
+    newBtn.textContent = '＋ 新規プロジェクト';
+    newBtn.addEventListener('click', () => showModal('modal-project'));
+    content.appendChild(newBtn);
+  }
+}
+
+// ========== PROJECT CRUD ==========
+document.getElementById('btn-open-new-project').addEventListener('click', () => {
+  showModal('modal-project');
+});
+document.getElementById('btn-cancel-project').addEventListener('click', () => {
+  hideModal('modal-project');
+});
+document.getElementById('btn-create-project').addEventListener('click', () => {
+  const name = document.getElementById('new-project-name').value.trim();
+  if (!name) return;
+  const project = { id: uid(), name, cuts: [], audioData: null, audioName: null };
+  projects.unshift(project);
+  saveProjects();
+  document.getElementById('new-project-name').value = '';
+  hideModal('modal-project');
+  renderProjectList();
+});
+
+// ========== OPEN PROJECT ==========
+function openProject(id) {
+  currentProjectId = id;
+  const project = getProject(id);
+  document.getElementById('timeline-title').textContent = project.name;
+
+  // 音源リセット
+  resetAudio();
+  if (project.audioData) {
+    loadAudioFromData(project.audioData, project.audioName);
+  }
+
+  showScreen('screen-timeline');
+  renderTimeline();
+}
+
+document.getElementById('btn-back').addEventListener('click', () => {
+  stopAudio();
+  showScreen('screen-list');
+  renderProjectList();
+});
+
+// ========== AUDIO ==========
+document.getElementById('btn-audio-upload').addEventListener('click', () => {
+  document.getElementById('audio-file-input').click();
+});
+
+document.getElementById('audio-file-input').addEventListener('change', (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = (ev) => {
+    const data = ev.target.result;
+    const project = getProject(currentProjectId);
+    project.audioData = data;
+    project.audioName = file.name;
+    saveProjects();
+    loadAudioFromData(data, file.name);
+  };
+  reader.readAsDataURL(file);
+  e.target.value = '';
+});
+
+function loadAudioFromData(data, name) {
+  resetAudio();
+  audio = new Audio(data);
+  audio.addEventListener('loadedmetadata', () => {
+    duration = audio.duration;
+    updateTimeDisplay();
+    document.getElementById('btn-play').disabled = false;
+    renderRuler();
+    renderTimeline();
+  });
+  audio.addEventListener('ended', () => {
+    isPlaying = false;
+    document.getElementById('btn-play').textContent = '▶';
+    cancelAnimationFrame(animationFrame);
+  });
+  document.getElementById('audio-filename').textContent = name;
+}
+
+function resetAudio() {
+  if (audio) {
+    audio.pause();
+    audio = null;
+  }
+  isPlaying = false;
+  currentTime = 0;
+  duration = 0;
+  document.getElementById('btn-play').textContent = '▶';
+  document.getElementById('btn-play').disabled = true;
+  document.getElementById('audio-filename').textContent = 'ファイルなし';
+  cancelAnimationFrame(animationFrame);
+}
+
+function stopAudio() {
+  if (audio) { audio.pause(); }
+  isPlaying = false;
+  cancelAnimationFrame(animationFrame);
+}
+
+document.getElementById('btn-play').addEventListener('click', () => {
+  if (!audio) return;
+  if (isPlaying) {
+    audio.pause();
+    isPlaying = false;
+    document.getElementById('btn-play').textContent = '▶';
+    cancelAnimationFrame(animationFrame);
+  } else {
+    audio.currentTime = currentTime;
+    audio.play();
+    isPlaying = true;
+    document.getElementById('btn-play').textContent = '⏸';
+    animatePlayhead();
+  }
+});
+
+function animatePlayhead() {
+  if (!isPlaying || !audio) return;
+  currentTime = audio.currentTime;
+  updateTimeDisplay();
+  updatePlayheadPosition();
+  animationFrame = requestAnimationFrame(animatePlayhead);
+}
+
+function updateTimeDisplay() {
+  document.getElementById('time-display').textContent =
+    `${formatTime(currentTime)} / ${formatTime(duration)}`;
+}
+
+function updatePlayheadPosition() {
+  const y = currentTime * PX_PER_SEC;
+  document.getElementById('playhead').style.top = y + 'px';
+}
+
+// ========== PLAYHEAD DRAG ==========
+const playheadDrag = document.getElementById('playhead-draggable');
+let isDraggingPlayhead = false;
+let dragStartY = 0;
+let dragStartTime = 0;
+
+playheadDrag.addEventListener('touchstart', (e) => {
+  isDraggingPlayhead = true;
+  dragStartY = e.touches[0].clientY;
+  dragStartTime = currentTime;
+  if (isPlaying) { audio.pause(); }
+}, { passive: true });
+
+document.addEventListener('touchmove', (e) => {
+  if (!isDraggingPlayhead) return;
+  const body = document.getElementById('timeline-body');
+  const scrollTop = body.scrollTop;
+  const bodyRect = body.getBoundingClientRect();
+  const touchY = e.touches[0].clientY - bodyRect.top + scrollTop;
+  currentTime = Math.max(0, Math.min(duration || 999, touchY / PX_PER_SEC));
+  updateTimeDisplay();
+  updatePlayheadPosition();
+}, { passive: true });
+
+document.addEventListener('touchend', () => {
+  if (!isDraggingPlayhead) return;
+  isDraggingPlayhead = false;
+  if (isPlaying && audio) {
+    audio.currentTime = currentTime;
+    audio.play();
+  }
+});
+
+// ========== RULER ==========
+function renderRuler() {
+  const ruler = document.getElementById('timeline-ruler');
+  ruler.innerHTML = '';
+  const totalSec = Math.max(duration, 30);
+  const totalPx = totalSec * PX_PER_SEC + 100;
+  document.getElementById('timeline-inner').style.height = totalPx + 'px';
+
+  for (let s = 0; s <= totalSec; s += TICK_INTERVAL) {
+    const tick = document.createElement('div');
+    const isMajor = s % MAJOR_EVERY === 0;
+    tick.className = 'ruler-tick' + (isMajor ? ' major' : '');
+    tick.style.top = (s * PX_PER_SEC) + 'px';
+    tick.innerHTML = `
+      <span class="ruler-tick-label">${isMajor ? formatTime(s) : ''}</span>
+      <div class="ruler-tick-line"></div>
+    `;
+    ruler.appendChild(tick);
+  }
+}
+
+// ========== CUTS ==========
+function renderTimeline() {
+  renderRuler();
+  const area = document.getElementById('cuts-area');
+  area.innerHTML = '';
+  const project = getProject(currentProjectId);
+  if (!project) return;
+
+  project.cuts.forEach((cut, idx) => {
+    renderCut(cut, idx, project.cuts);
+  });
+}
+
+function getCutColumn(cut, cuts) {
+  // 重なりチェック: 同じカラムで重なるカットがあれば次のカラムへ
+  const sortedByCol = cuts.filter(c => c.id !== cut.id);
+  for (let col = 0; col < 10; col++) {
+    const colCuts = sortedByCol.filter(c => (c.column || 0) === col);
+    const overlaps = colCuts.some(c => {
+      const aStart = cut.time;
+      const aEnd = cut.time + cut.duration;
+      const bStart = c.time;
+      const bEnd = c.time + c.duration;
+      return aStart < bEnd && aEnd > bStart;
+    });
+    if (!overlaps) return col;
+  }
+  return 0;
+}
+
+function renderCut(cut, idx, allCuts) {
+  const area = document.getElementById('cuts-area');
+  const areaWidth = area.offsetWidth || 300;
+  const col = cut.column || 0;
+  const colWidth = Math.min(200, (areaWidth - 8) / 3);
+  const colGap = 4;
+
+  const el = document.createElement('div');
+  el.className = 'cut-block';
+  el.dataset.id = cut.id;
+  el.style.top = (cut.time * PX_PER_SEC) + 'px';
+  el.style.height = (cut.duration * PX_PER_SEC) + 'px';
+  el.style.left = (col * (colWidth + colGap) + 4) + 'px';
+  el.style.width = colWidth + 'px';
+
+  const thumbHtml = cut.imageData
+    ? `<img class="cut-thumb" src="${cut.imageData}" alt="">`
+    : `<div class="cut-thumb-placeholder">🖼</div>`;
+
+  el.innerHTML = `
+    <div class="cut-header">
+      ${thumbHtml}
+      <span class="cut-number">#${idx + 1}</span>
+      <span class="cut-text-preview">${cut.text || ''}</span>
+    </div>
+    <div class="cut-resize-handle" data-resize="${cut.id}"></div>
+  `;
+
+  // タップで編集
+  let tapTimer = null;
+  let hasMoved = false;
+  let startTouchY = 0;
+
+  el.addEventListener('touchstart', (e) => {
+    hasMoved = false;
+    startTouchY = e.touches[0].clientY;
+    tapTimer = setTimeout(() => {
+      if (!hasMoved) openCutModal(cut.id);
+    }, 200);
+  }, { passive: true });
+
+  // ドラッグ移動
+  let isDragging = false;
+  let dragStartTouchY = 0;
+  let dragStartCutTime = 0;
+
+  el.addEventListener('touchstart', (e) => {
+    dragStartTouchY = e.touches[0].clientY;
+    dragStartCutTime = cut.time;
+  }, { passive: true });
+
+  el.addEventListener('touchmove', (e) => {
+    clearTimeout(tapTimer);
+    hasMoved = true;
+    const dy = e.touches[0].clientY - dragStartTouchY;
+    const newTime = Math.max(0, dragStartCutTime + dy / PX_PER_SEC);
+    cut.time = Math.round(newTime * 10) / 10;
+    // コラム再計算
+    const project = getProject(currentProjectId);
+    cut.column = getCutColumn(cut, project.cuts);
+    el.style.top = (cut.time * PX_PER_SEC) + 'px';
+  }, { passive: true });
+
+  el.addEventListener('touchend', () => {
+    saveProjects();
+    renderTimeline();
+  });
+
+  // リサイズハンドル
+  const resizeHandle = el.querySelector('[data-resize]');
+  let isResizing = false;
+  let resizeStartY = 0;
+  let resizeStartDuration = 0;
+
+  resizeHandle.addEventListener('touchstart', (e) => {
+    e.stopPropagation();
+    isResizing = true;
+    resizeStartY = e.touches[0].clientY;
+    resizeStartDuration = cut.duration;
+  }, { passive: true });
+
+  document.addEventListener('touchmove', (ev) => {
+    if (!isResizing) return;
+    const dy = ev.touches[0].clientY - resizeStartY;
+    const newDuration = Math.max(1, resizeStartDuration + dy / PX_PER_SEC);
+    cut.duration = Math.round(newDuration * 10) / 10;
+    el.style.height = (cut.duration * PX_PER_SEC) + 'px';
+  }, { passive: true });
+
+  document.addEventListener('touchend', () => {
+    if (!isResizing) return;
+    isResizing = false;
+    saveProjects();
+    renderTimeline();
+  });
+
+  area.appendChild(el);
+}
+
+// ========== ADD CUT ==========
+document.getElementById('btn-add-cut').addEventListener('click', () => {
+  const project = getProject(currentProjectId);
+  const newCut = {
+    id: uid(),
+    time: currentTime,
+    duration: 3,
+    imageData: null,
+    text: '',
+    column: 0,
+  };
+  newCut.column = getCutColumn(newCut, project.cuts);
+  project.cuts.push(newCut);
+  saveProjects();
+  renderTimeline();
+  // 追加した位置にスクロール
+  const body = document.getElementById('timeline-body');
+  const targetScroll = currentTime * PX_PER_SEC - 100;
+  body.scrollTop = Math.max(0, targetScroll);
+});
+
+// ========== CUT MODAL ==========
+function openCutModal(cutId) {
+  const project = getProject(currentProjectId);
+  const cut = project.cuts.find(c => c.id === cutId);
+  if (!cut) return;
+  currentCutId = cutId;
+
+  const idx = project.cuts.indexOf(cut);
+  document.getElementById('cut-modal-title').textContent = `カット #${idx + 1} 編集`;
+  document.getElementById('cut-text').value = cut.text || '';
+
+  const imgArea = document.getElementById('cut-image-area');
+  if (cut.imageData) {
+    imgArea.innerHTML = `<img src="${cut.imageData}" alt="">`;
+  } else {
+    imgArea.innerHTML = `
+      <div class="image-upload-icon">🖼</div>
+      <div class="image-upload-text">タップして画像を選択</div>
+    `;
+  }
+
+  showModal('modal-cut');
+}
+
+document.getElementById('cut-image-area').addEventListener('click', () => {
+  document.getElementById('cut-image-input').click();
+});
+document.getElementById('cut-image-input').addEventListener('change', (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = (ev) => {
+    const imgArea = document.getElementById('cut-image-area');
+    imgArea.innerHTML = `<img src="${ev.target.result}" alt="">`;
+    // 一時保存
+    const project = getProject(currentProjectId);
+    const cut = project.cuts.find(c => c.id === currentCutId);
+    if (cut) { cut._tempImage = ev.target.result; }
+  };
+  reader.readAsDataURL(file);
+  e.target.value = '';
+});
+
+document.getElementById('btn-save-cut').addEventListener('click', () => {
+  const project = getProject(currentProjectId);
+  const cut = project.cuts.find(c => c.id === currentCutId);
+  if (!cut) return;
+  cut.text = document.getElementById('cut-text').value;
+  if (cut._tempImage) { cut.imageData = cut._tempImage; delete cut._tempImage; }
+  saveProjects();
+  hideModal('modal-cut');
+  renderTimeline();
+});
+
+document.getElementById('btn-cancel-cut').addEventListener('click', () => {
+  const project = getProject(currentProjectId);
+  const cut = project.cuts.find(c => c.id === currentCutId);
+  if (cut) delete cut._tempImage;
+  hideModal('modal-cut');
+});
+
+document.getElementById('btn-delete-cut').addEventListener('click', () => {
+  if (!confirm('このカットを削除しますか？')) return;
+  const project = getProject(currentProjectId);
+  project.cuts = project.cuts.filter(c => c.id !== currentCutId);
+  saveProjects();
+  hideModal('modal-cut');
+  renderTimeline();
+});
+
+// ========== MODAL UTILS ==========
+function showModal(id) {
+  document.getElementById(id).classList.add('active');
+}
+function hideModal(id) {
+  document.getElementById(id).classList.remove('active');
+}
+
+// オーバーレイタップで閉じる
+document.querySelectorAll('.modal-overlay').forEach(overlay => {
+  overlay.addEventListener('click', (e) => {
+    if (e.target === overlay) hideModal(overlay.id);
+  });
+});
+
+// ========== SCREEN UTILS ==========
+function showScreen(id) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+}
+
+// ========== INIT ==========
+renderProjectList();
+renderRuler();
+</script>
+</body>
+</html>
