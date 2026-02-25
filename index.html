@@ -145,6 +145,24 @@
   .btn-split:active { opacity: 0.8; }
   .btn-split:disabled { background: var(--border); color: var(--text-muted); }
 
+  /* シークバー */
+  .seekbar-row { display: flex; align-items: center; gap: 8px; }
+  .seekbar-wrap { flex: 1; position: relative; height: 20px; display: flex; align-items: center; }
+  .seekbar-track { width: 100%; height: 4px; background: var(--border); border-radius: 2px; position: relative; }
+  .seekbar-fill { position: absolute; left: 0; top: 0; height: 100%; background: var(--accent); border-radius: 2px; pointer-events: none; }
+  input[type=range].seekbar {
+    position: absolute; left: 0; top: 50%; transform: translateY(-50%);
+    width: 100%; height: 20px;
+    -webkit-appearance: none; appearance: none;
+    background: transparent; cursor: pointer; margin: 0;
+  }
+  input[type=range].seekbar::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 18px; height: 18px;
+    background: var(--accent); border-radius: 50%; border: none;
+  }
+  input[type=range].seekbar:disabled::-webkit-slider-thumb { background: var(--border); }
+
   .timeline-body { flex: 1; overflow-y: auto; position: relative; }
   .timeline-inner { position: relative; min-height: 100%; }
 
@@ -365,6 +383,12 @@
       <span class="audio-filename" id="audio-filename">ファイルなし</span>
       <input type="file" id="audio-file-input" accept="audio/*" style="position:absolute;opacity:0;width:0;height:0;">
     </div>
+    <div class="seekbar-row">
+      <div class="seekbar-wrap">
+        <div class="seekbar-track"><div class="seekbar-fill" id="seekbar-fill" style="width:0%"></div></div>
+        <input type="range" class="seekbar" id="seekbar" min="0" max="1000" value="0" step="1" disabled>
+      </div>
+    </div>
     <div class="playback-row">
       <button class="btn-play" id="btn-play" disabled>&#9654;</button>
       <span class="time-display" id="time-display">0:00.0 / 0:00.0</span>
@@ -580,6 +604,7 @@ function loadAudioFromBlob(blob, name) {
     updateTimeDisplay();
     document.getElementById('btn-play').disabled = false;
     document.getElementById('btn-split').disabled = false;
+    document.getElementById('seekbar').disabled = false;
 
     // 全体を1カットとして生成（カットが空のとき）
     const project = getProject(currentProjectId);
@@ -614,6 +639,9 @@ function resetAudio() {
   document.getElementById('btn-play').textContent = '\u25B6';
   document.getElementById('btn-play').disabled = true;
   document.getElementById('btn-split').disabled = true;
+  document.getElementById('seekbar').disabled = true;
+  document.getElementById('seekbar').value = 0;
+  document.getElementById('seekbar-fill').style.width = '0%';
   document.getElementById('audio-filename').textContent = 'ファイルなし';
   cancelAnimationFrame(animationFrame);
 }
@@ -650,6 +678,11 @@ function animatePlayhead() {
 }
 function updateTimeDisplay() {
   document.getElementById('time-display').textContent = formatTime(currentTime) + ' / ' + formatTime(duration);
+  if (duration > 0) {
+    const pct = (currentTime / duration) * 100;
+    document.getElementById('seekbar').value = Math.round((currentTime / duration) * 1000);
+    document.getElementById('seekbar-fill').style.width = pct + '%';
+  }
 }
 function updatePlayheadPosition() {
   document.getElementById('playhead').style.top = (currentTime * PX_PER_SEC) + 'px';
@@ -678,6 +711,43 @@ document.addEventListener('touchend', () => {
   if (!isDraggingPlayhead) return;
   isDraggingPlayhead = false;
   if (isPlaying && audio) { audio.currentTime = currentTime; audio.play(); }
+});
+
+// Seekbar
+const seekbar = document.getElementById('seekbar');
+seekbar.addEventListener('input', () => {
+  if (!duration) return;
+  const wasPlaying = isPlaying;
+  if (isPlaying) { audio.pause(); isPlaying = false; cancelAnimationFrame(animationFrame); }
+  currentTime = (seekbar.value / 1000) * duration;
+  if (audio) audio.currentTime = currentTime;
+  updateTimeDisplay();
+  updatePlayheadPosition();
+  // スクロールをplayheadに合わせる
+  const body = document.getElementById('timeline-body');
+  const targetScroll = currentTime * PX_PER_SEC - body.clientHeight / 2;
+  body.scrollTop = Math.max(0, targetScroll);
+  if (wasPlaying && audio) {
+    audio.play().catch(e => console.error(e));
+    isPlaying = true;
+    document.getElementById('btn-play').textContent = '⏸';
+    animatePlayhead();
+  }
+});
+
+// タイムライン上のタップで再生位置を移動
+document.getElementById('timeline-body').addEventListener('click', (e) => {
+  if (!duration) return;
+  // playhead-draggable やカットブロックのタップは除外
+  if (e.target.closest('.cut-block') || e.target.closest('.playhead-draggable')) return;
+  const body = document.getElementById('timeline-body');
+  const bodyRect = body.getBoundingClientRect();
+  const clickY = e.clientY - bodyRect.top + body.scrollTop;
+  const newTime = Math.max(0, Math.min(duration, clickY / PX_PER_SEC));
+  currentTime = newTime;
+  if (audio) audio.currentTime = currentTime;
+  updateTimeDisplay();
+  updatePlayheadPosition();
 });
 
 // Split
