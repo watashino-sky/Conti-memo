@@ -830,8 +830,12 @@ function loadAudioFromBlob(blob, name) {
   });
   audio.addEventListener('ended', () => {
     isPlaying = false;
+    currentTime = 0;
+    audio.currentTime = 0;
     document.getElementById('btn-play').textContent = '▶';
     cancelAnimationFrame(animationFrame);
+    updateTimeDisplay();
+    updatePlayheadPosition();
   });
   document.getElementById('audio-filename').textContent = name;
 }
@@ -865,8 +869,12 @@ document.getElementById('btn-play').addEventListener('click', () => {
     document.getElementById('btn-play').textContent = '▶';
     cancelAnimationFrame(animationFrame);
   } else {
+    // 最後まで再生済みの場合は先頭に戻す
+    if (duration > 0 && currentTime >= duration - 0.1) {
+      currentTime = 0;
+    }
     audio.currentTime = currentTime;
-    audio.play();
+    audio.play().catch(err => console.error('play error', err));
     isPlaying = true;
     document.getElementById('btn-play').textContent = '⏸';
     animatePlayhead();
