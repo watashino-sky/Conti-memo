@@ -720,7 +720,7 @@ document.getElementById('btn-cancel-project').addEventListener('click', () => {
 document.getElementById('btn-create-project').addEventListener('click', () => {
   const name = document.getElementById('new-project-name').value.trim();
   if (!name) return;
-  const project = { id: uid(), name, cuts: [], audioData: null, audioName: null };
+  const project = { id: uid(), name, cuts: [], audioName: null };
   projects.unshift(project);
   saveProjects();
   document.getElementById('new-project-name').value = '';
@@ -729,19 +729,24 @@ document.getElementById('btn-create-project').addEventListener('click', () => {
 });
 
 // ========== OPEN PROJECT ==========
-function openProject(id) {
+async function openProject(id) {
   currentProjectId = id;
   const project = getProject(id);
   document.getElementById('timeline-title').textContent = project.name;
 
-  // 音源リセット
   resetAudio();
-  if (project.audioData) {
-    loadAudioFromData(project.audioData, project.audioName);
-  }
-
   showScreen('screen-timeline');
   renderTimeline();
+
+  // IndexedDBから音源を復元
+  if (project.audioName) {
+    try {
+      const blob = await loadAudioFromDB(id);
+      if (blob) loadAudioFromBlob(blob, project.audioName);
+    } catch (err) {
+      console.error(err);
+    }
+  }
 }
 
 document.getElementById('btn-back').addEventListener('click', () => {
@@ -750,34 +755,78 @@ document.getElementById('btn-back').addEventListener('click', () => {
   renderProjectList();
 });
 
+// ========== INDEXEDDB FOR AUDIO ==========
+let db = null;
+
+function openDB() {
+  return new Promise((resolve, reject) => {
+    if (db) return resolve(db);
+    const req = indexedDB.open('storyboard_audio', 1);
+    req.onupgradeneeded = (e) => {
+      e.target.result.createObjectStore('audio');
+    };
+    req.onsuccess = (e) => { db = e.target.result; resolve(db); };
+    req.onerror = reject;
+  });
+}
+
+async function saveAudioToDB(projectId, file) {
+  const database = await openDB();
+  return new Promise((resolve, reject) => {
+    const tx = database.transaction('audio', 'readwrite');
+    tx.objectStore('audio').put(file, projectId);
+    tx.oncomplete = resolve;
+    tx.onerror = reject;
+  });
+}
+
+async function loadAudioFromDB(projectId) {
+  const database = await openDB();
+  return new Promise((resolve, reject) => {
+    const tx = database.transaction('audio', 'readonly');
+    const req = tx.objectStore('audio').get(projectId);
+    req.onsuccess = () => resolve(req.result || null);
+    req.onerror = reject;
+  });
+}
+
 // ========== AUDIO ==========
 // audio upload handled by label
 
-document.getElementById('audio-file-input').addEventListener('change', (e) => {
+document.getElementById('audio-file-input').addEventListener('change', async (e) => {
   const file = e.target.files[0];
   if (!file) return;
-  const reader = new FileReader();
-  reader.onload = (ev) => {
-    const data = ev.target.result;
+  e.target.value = '';
+
+  document.getElementById('audio-filename').textContent = '読み込み中...';
+
+  try {
+    await saveAudioToDB(currentProjectId, file);
     const project = getProject(currentProjectId);
-    project.audioData = data;
     project.audioName = file.name;
     saveProjects();
-    loadAudioFromData(data, file.name);
-  };
-  reader.readAsDataURL(file);
-  e.target.value = '';
+    loadAudioFromBlob(file, file.name);
+  } catch (err) {
+    console.error(err);
+    document.getElementById('audio-filename').textContent = '読み込みエラー';
+  }
 });
 
-function loadAudioFromData(data, name) {
+function loadAudioFromBlob(blob, name) {
   resetAudio();
-  audio = new Audio(data);
+  const url = URL.createObjectURL(blob);
+  audio = new Audio(url);
+  audio._objectUrl = url;
   audio.addEventListener('loadedmetadata', () => {
     duration = audio.duration;
     updateTimeDisplay();
     document.getElementById('btn-play').disabled = false;
     renderRuler();
     renderTimeline();
+  });
+  audio.addEventListener('error', (e) => {
+    console.error('Audio error', e);
+    document.getElementById('audio-filename').textContent = '再生エラー';
   });
   audio.addEventListener('ended', () => {
     isPlaying = false;
@@ -790,6 +839,7 @@ function loadAudioFromData(data, name) {
 function resetAudio() {
   if (audio) {
     audio.pause();
+    if (audio._objectUrl) URL.revokeObjectURL(audio._objectUrl);
     audio = null;
   }
   isPlaying = false;
